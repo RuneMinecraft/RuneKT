@@ -23,6 +23,7 @@ class ScriptManager(private val plugin: JavaPlugin) {
         .toList()
     fun getAllScriptNames(): List<String> = getAllScripts()
         .map { it.relativeTo(scriptsFolder).path.replace(File.separator, "/") }
+    fun getAllLoadedScriptNames(): List<String> = loadedScripts.keys.toList()
     fun getScript(name: String): File? {
         return getAllScripts().firstOrNull { it.relativeTo(scriptsFolder).path == name }
     }

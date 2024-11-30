@@ -9,13 +9,14 @@ import kotlin.script.experimental.jvm.jvm
 import kotlin.script.experimental.jvmhost.createJvmCompilationConfigurationFromTemplate
 import kotlin.script.experimental.jvm.BasicJvmScriptEvaluator
 import java.io.File
+import kotlin.coroutines.coroutineContext
 import kotlin.script.experimental.jvm.baseClassLoader
 import kotlin.script.experimental.jvmhost.JvmScriptCompiler
 
-suspend fun execute(scriptManager: ScriptManager, sender: CommandSender, scriptName: String) {
+suspend fun execute(scriptManager: ScriptManager, scriptName: String) {
     val scriptFile: File? = scriptManager.getScript(scriptName)
     if (scriptFile == null || !scriptFile.exists() || !scriptFile.canRead()) {
-        sender.sendMessage("Script '$scriptName' not found or is not readable.")
+        println("An error occured! [null script was executed]")
         return
     }
 
@@ -37,20 +38,20 @@ suspend fun execute(scriptManager: ScriptManager, sender: CommandSender, scriptN
 
         if (compiledScriptResult is ResultWithDiagnostics.Failure) {
             val errorMessages = compiledScriptResult.reports.joinToString("\n") { it.message }
-            sender.sendMessage("Failed to compile script: $errorMessages")
+            println("An error occured! [compiling error]\n$errorMessages")
             return
         }
 
         val evaluationResult = evaluator(compiledScriptResult.valueOrThrow(), evaluationConfiguration)
 
         if (evaluationResult is ResultWithDiagnostics.Success) {
-            sender.sendMessage("Script executed successfully: ${evaluationResult.value}")
+            println("Executed the script: $scriptName")
         } else {
             val errorMessages = evaluationResult.reports.joinToString("\n") { it.message }
-            sender.sendMessage("Script execution failed: $errorMessages")
+            println("An error occured! [execution error]")
         }
     } catch (e: Throwable) {
-        sender.sendMessage("Error while executing script: ${e.message}")
+        println("An error occured! [unknown]")
         e.printStackTrace()
     }
 }

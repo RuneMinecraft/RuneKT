@@ -1,11 +1,13 @@
 package net.runemc.plugin.script
 
 import kotlinx.coroutines.*
+import net.runemc.plugin.script.actions.execute
 import net.runemc.plugin.script.actions.load
 import net.runemc.plugin.script.actions.unload
-import net.runemc.plugin.script.actions.execute
-
+import net.runemc.utils.sendMessage
+import org.bukkit.Bukkit
 import org.bukkit.command.*
+import kotlin.script.experimental.api.ResultWithDiagnostics
 
 class ScriptCommand(private val scriptManager: ScriptManager) : CommandExecutor, TabCompleter {
 
@@ -17,7 +19,7 @@ class ScriptCommand(private val scriptManager: ScriptManager) : CommandExecutor,
         args: Array<out String>
     ): Boolean {
         if (args.isEmpty()) {
-            sender.sendMessage("Usage: /script <load|unload|reload|execute> <scriptPath>")
+            sendMessage(sender, "&cInvalid Arguments! Usage: /script <load|unload|reload|execute> <scriptPath>")
             return true
         }
 
@@ -25,15 +27,42 @@ class ScriptCommand(private val scriptManager: ScriptManager) : CommandExecutor,
         val scriptName = args.getOrNull(1)
 
         when (subCommand) {
-            "load" -> scriptName?.let { load(scriptManager, it) } ?: sender.sendMessage("Specify a script.")
-            "unload" -> scriptName?.let { unload(scriptManager, it) } ?: sender.sendMessage("Specify a script.")
+            "load" -> scriptName?.let {
+                val start = System.currentTimeMillis();
+                sendMessage(sender, "&eLoading &f$scriptName...")
+
+                load(scriptManager, it)
+
+                sendMessage(sender, "&aLoaded &f$scriptName! &7&o(Took ${System.currentTimeMillis()-start}ms)")
+            } ?: sendMessage(sender, "&cPlease specify a script!")
+
+            "unload" -> scriptName?.let {
+                val start = System.currentTimeMillis();
+                sendMessage(sender, "&eUnloading &f$scriptName...")
+
+                unload(scriptManager, it)
+
+                sendMessage(sender, "&aUnloaded &f$scriptName! &7&o(Took ${System.currentTimeMillis()-start}ms)")
+            } ?: sendMessage(sender, "&cPlease specify a script!")
+
+            "reload" -> scriptName?.let {
+                val start = System.currentTimeMillis();
+                sendMessage(sender, "&eReloading &f$scriptName...")
+
+                unload(scriptManager, it)
+                load(scriptManager, it)
+
+                sendMessage(sender, "&aReloaded &f$scriptName! &7&o(Took ${System.currentTimeMillis()-start}ms)")
+            } ?: sendMessage(sender, "&cPlease specify a script!")
+
             "execute" -> scriptName?.let {
+                val start = System.currentTimeMillis();
                 GlobalScope.launch {
                     try {
-                        val result = execute(scriptManager, sender, scriptName)
+                        execute(scriptManager, scriptName)
 
                         withContext(Dispatchers.IO) {
-                            sender.sendMessage("Suspend function finished: $result")
+                            sendMessage(sender, "&aExecuted the script: &f$scriptName &7&o(Took ${System.currentTimeMillis()-start}ms)")
                         }
                     } catch (e: Exception) {
                         withContext(Dispatchers.Main) {
@@ -41,12 +70,8 @@ class ScriptCommand(private val scriptManager: ScriptManager) : CommandExecutor,
                         }
                     }
                 }
-            } ?: sender.sendMessage("Specify a script.")
-            "reload" -> scriptName?.let {
-                unload(scriptManager, it)
-                load(scriptManager, it)
-            } ?: sender.sendMessage("Specify a script.")
-            else -> sender.sendMessage("Unknown subcommand: $subCommand")
+            } ?: sendMessage(sender, "&cPlease specify a script!")
+            else -> sender.sendMessage("&cUnknown subcommand: $subCommand!")
         }
         return true
     }
@@ -59,7 +84,7 @@ class ScriptCommand(private val scriptManager: ScriptManager) : CommandExecutor,
     ): List<String> {
         return when (args.size) {
             1 -> listOf("load", "unload", "reload", "execute").filter { it.startsWith(args[0]) }
-            2 -> scriptManager.getAllScriptNames()
+            2 -> scriptManager.getAllLoadedScriptNames()
             else -> emptyList()
         }
     }
